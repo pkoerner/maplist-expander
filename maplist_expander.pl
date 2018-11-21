@@ -78,7 +78,7 @@ expand(A, Module, NA, AccIn, AccOut) :-
 expand(X, _Module, X, Acc, Acc).
 
 :- multifile user:term_expansion/6.
-user:term_expansion(Term1, Layout1, Ids, [Term2|MoreTerms], [], [maplist_expander_token|Ids]) :-
+user:term_expansion(Term1, _Layout1, Ids, [Term2|MoreTerms], [], [maplist_expander_token|Ids]) :-
     nonmember(maplist_expander_token, Ids),
     prolog_load_context(module, Module),
     expand(Term1, Module, Term2, [], MoreTerms),
