@@ -97,7 +97,6 @@ inline_calls(ArgLists, MetaGoalName, MetaGoalArgs, (Goal,SubGoalOut)) :-
 
 replace_goal(MaplistGoal, _, AdditionalRulesIn, AdditionalRulesIn, SubGoalOut) :-
     MaplistGoal =.. [maplist,MetaGoal|Args],
-    trace,
     all_args_have_known_length(Args), !,
     MetaGoal =.. [MetaGoalName|MetaGoalArgs],
     inline_calls(Args, MetaGoalName, MetaGoalArgs, SubGoalOut).
