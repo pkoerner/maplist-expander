@@ -131,4 +131,5 @@ user:term_expansion(Term1, _Layout1, Ids, [Term2|MoreTerms], [], [maplist_expand
     nonmember(maplist_expander_token, Ids),
     prolog_load_context(module, Module),
     expand(Term1, Module, Term2, [], MoreTerms),
-    print(expanded_to(Term2, MoreTerms)),nl.
+    %print(expanded_to(Term2, MoreTerms)),nl.
+    true.
