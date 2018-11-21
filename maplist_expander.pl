@@ -22,6 +22,16 @@
 % should expand to:
 % foo :- member(1, [1]), member(2, [2]), member(3, [1,2,3]).
 
+:- dynamic countah/1.
+
+countah(0).
+
+inc_countah(Val) :-
+    countah(Val),
+    retract(countah(Val)),
+    Val1 is Val+1,
+    assert(countah(Val1)).
+
 repeat(0, _, []).
 repeat(N, Elem, [Elem|Res]) :-
     N1 is N-1,
@@ -31,12 +41,12 @@ generate_head_tail([], [], []).
 generate_head_tail([[H|T]|VT], [H|HT], [T|TT]) :-
     generate_head_tail(VT, HT, TT).
 
-generate_more_rules([Names, Acc], Module, InternalName, _, _, [Names, Acc]) :-
-    % if a maplist already is expanded in this module,
-    % we must not generate duplicate rules
-    % (it would incorrectly generate more solutions)
-    member(Module:InternalName, Names), !.
-generate_more_rules([NamesIn, AccIn], Module, InternalName, MetaGoal, Arity, [[Module:InternalName,NamesIn],[Module:Goal1, Module:Goal2|AccIn]]) :-
+my_atom_number(Atom, Number) :-
+    (nonvar(Number)
+      -> number_chars(Number, Chars), atom_chars(Atom, Chars)
+       ; atom_chars(Atom, Chars), number_chars(Number, Chars)).
+
+generate_more_rules(AccIn, Module, InternalName, MetaGoal, Arity, [Module:Goal1, Module:Goal2|AccIn]) :-
     repeat(Arity, [], BaseCase),
     Goal1 =.. [InternalName|BaseCase],
     length(Vars, Arity),
@@ -47,29 +57,31 @@ generate_more_rules([NamesIn, AccIn], Module, InternalName, MetaGoal, Arity, [[M
     % i.e. some arguments are bound to the predicate,
     % they need to be passed as well
     MetaGoal =.. [MetaGoalTerm|Args],
-    concat(Args, Heads, AllArgs),
+    append(Args, Heads, AllArgs),
 
     SubGoal =.. [MetaGoalTerm|AllArgs],
     Recursion =.. [InternalName|Tails],
     Goal2 = ':-'(GoalHead, (SubGoal, Recursion)).
 
-gen_name_no_bound_args(MetaGoal, Arity, Name) :-
-    atom_concat('$internal_no_maplisto_', MetaGoal, InternalTmp1),
-    number_chars(Arity, ArityChars),
-    atom_chars(ArityAtom, ArityChars),
+gen_name(MetaGoal, Arity, Name) :-
+    % generate something like
+    % $internal_no_maplisto_member_1_123
+    MetaGoal =.. [MetaGoalName|_],
+    atom_concat('$internal_no_maplisto_', MetaGoalName, InternalTmp1),
+    my_atom_number(ArityAtom, Arity),
     atom_concat('_', ArityAtom, InternalTmp2),
-    atom_concat(InternalTmp1, InternalTmp2, Name).
+    atom_concat(InternalTmp1, InternalTmp2, InternalTmp3),
+    inc_countah(Count),
+    my_atom_number(CountAtom, Count),
+    atom_concat('_', CountAtom, InternalTmp4),
+    atom_concat(InternalTmp3, InternalTmp4, Name).
+
 
 replace_goal(MaplistGoal, Module, AdditionalRulesIn, AdditionalRulesOut, SubGoalOut) :-
-    % for now: no performance optimisation
-    % for now: only the easy part that expands 
-    % maplist(member, _, _)
-    % but not
-    % maplist(member(a), _)
+    % TODO: inline call entirely if length is statically known
     MaplistGoal =.. [maplist,MetaGoal|Args],
-    (atom(MetaGoal) ; MetaGoal = ':'(_Module, Goali), atom(Goali)),
     length(Args, Arity),
-    gen_name_no_bound_args(MetaGoal, Arity, InternalName),
+    gen_name(MetaGoal, Arity, InternalName),
     generate_more_rules(AdditionalRulesIn, Module,InternalName, MetaGoal, Arity, AdditionalRulesOut),
     SubGoalOut =.. [InternalName|Args].
 

@@ -4,3 +4,7 @@
 
 foo(A,B) :-
     maplist(member, A, B).
+
+
+bar(B) :-
+    maplist(member(1), B).
