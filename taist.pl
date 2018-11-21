@@ -8,3 +8,6 @@ foo(A,B) :-
 
 bar(B) :-
     maplist(member(1), B).
+
+lul(A,B) :-
+    maplist(member(1), [A,B]).

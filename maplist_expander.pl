@@ -77,6 +77,30 @@ gen_name(MetaGoal, Arity, Name) :-
     atom_concat(InternalTmp3, InternalTmp4, Name).
 
 
+my_is_list(L) :-
+    L == [] ;
+    nonvar(L),
+    L = [_|T],
+    my_is_list(T).
+
+
+all_args_have_known_length([]).
+all_args_have_known_length([H|T]) :-
+    my_is_list(H), all_args_have_known_length(T).
+
+inline_calls([[]|_], _, _, true).
+inline_calls(ArgLists, MetaGoalName, MetaGoalArgs, (Goal,SubGoalOut)) :-
+    generate_head_tail(ArgLists, Heads, Tails),
+    append(MetaGoalArgs, Heads, AllArgs),
+    Goal =.. [MetaGoalName|AllArgs],
+    inline_calls(Tails, MetaGoalName, MetaGoalArgs, SubGoalOut).
+
+replace_goal(MaplistGoal, _, AdditionalRulesIn, AdditionalRulesIn, SubGoalOut) :-
+    MaplistGoal =.. [maplist,MetaGoal|Args],
+    trace,
+    all_args_have_known_length(Args), !,
+    MetaGoal =.. [MetaGoalName|MetaGoalArgs],
+    inline_calls(Args, MetaGoalName, MetaGoalArgs, SubGoalOut).
 replace_goal(MaplistGoal, Module, AdditionalRulesIn, AdditionalRulesOut, SubGoalOut) :-
     % TODO: inline call entirely if length is statically known
     MaplistGoal =.. [maplist,MetaGoal|Args],
