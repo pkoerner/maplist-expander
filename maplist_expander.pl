@@ -31,15 +31,34 @@ generate_head_tail([], [], []).
 generate_head_tail([[H|T]|VT], [H|HT], [T|TT]) :-
     generate_head_tail(VT, HT, TT).
 
-generate_more_rules(AccIn, Module, InternalName, MetaGoal, Arity, [Module:Goal1, Module:Goal2|AccIn]) :-
+generate_more_rules([Names, Acc], Module, InternalName, _, _, [Names, Acc]) :-
+    % if a maplist already is expanded in this module,
+    % we must not generate duplicate rules
+    % (it would incorrectly generate more solutions)
+    member(Module:InternalName, Names), !.
+generate_more_rules([NamesIn, AccIn], Module, InternalName, MetaGoal, Arity, [[Module:InternalName,NamesIn],[Module:Goal1, Module:Goal2|AccIn]]) :-
     repeat(Arity, [], BaseCase),
     Goal1 =.. [InternalName|BaseCase],
     length(Vars, Arity),
     generate_head_tail(Vars, Heads, Tails),
     GoalHead =.. [InternalName|Vars],
-    SubGoal =.. [MetaGoal|Heads],
+
+    % if the goal is something like maplist(member(1), Xs),
+    % i.e. some arguments are bound to the predicate,
+    % they need to be passed as well
+    MetaGoal =.. [MetaGoalTerm|Args],
+    concat(Args, Heads, AllArgs),
+
+    SubGoal =.. [MetaGoalTerm|AllArgs],
     Recursion =.. [InternalName|Tails],
     Goal2 = ':-'(GoalHead, (SubGoal, Recursion)).
+
+gen_name_no_bound_args(MetaGoal, Arity, Name) :-
+    atom_concat('$internal_no_maplisto_', MetaGoal, InternalTmp1),
+    number_chars(Arity, ArityChars),
+    atom_chars(ArityAtom, ArityChars),
+    atom_concat('_', ArityAtom, InternalTmp2),
+    atom_concat(InternalTmp1, InternalTmp2, Name).
 
 replace_goal(MaplistGoal, Module, AdditionalRulesIn, AdditionalRulesOut, SubGoalOut) :-
     % for now: no performance optimisation
@@ -48,14 +67,9 @@ replace_goal(MaplistGoal, Module, AdditionalRulesIn, AdditionalRulesOut, SubGoal
     % but not
     % maplist(member(a), _)
     MaplistGoal =.. [maplist,MetaGoal|Args],
-    length(Args, Arity),
     (atom(MetaGoal) ; MetaGoal = ':'(_Module, Goali), atom(Goali)),
-    atom_concat('$internal_no_maplisto_', MetaGoal, InternalTmp1),
-    number_chars(Arity, ArityChars),
-    atom_chars(ArityAtom, ArityChars),
-    %atom_number(ArityAtom, Arity),
-    atom_concat('_', ArityAtom, InternalTmp2),
-    atom_concat(InternalTmp1, InternalTmp2, InternalName),
+    length(Args, Arity),
+    gen_name_no_bound_args(MetaGoal, Arity, InternalName),
     generate_more_rules(AdditionalRulesIn, Module,InternalName, MetaGoal, Arity, AdditionalRulesOut),
     SubGoalOut =.. [InternalName|Args].
 
