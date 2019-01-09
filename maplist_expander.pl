@@ -99,6 +99,7 @@ replace_goal(MaplistGoal, _, AdditionalRulesIn, AdditionalRulesIn, SubGoalOut) :
     MaplistGoal =.. [maplist,MetaGoal|Args],
     all_args_have_known_length(Args), !,
     MetaGoal =.. [MetaGoalName|MetaGoalArgs],
+    %print(inlining_maplist(MetaGoalName)),nl,
     inline_calls(Args, MetaGoalName, MetaGoalArgs, SubGoalOut).
 replace_goal(MaplistGoal, Module, AdditionalRulesIn, AdditionalRulesOut, SubGoalOut) :-
     % TODO: inline call entirely if length is statically known
@@ -106,10 +107,12 @@ replace_goal(MaplistGoal, Module, AdditionalRulesIn, AdditionalRulesOut, SubGoal
     length(Args, Arity),
     gen_name(MetaGoal, Arity, InternalName),
     generate_more_rules(AdditionalRulesIn, Module,InternalName, MetaGoal, Arity, AdditionalRulesOut),
+    %print(transformed_maplist(InternalName)),nl,
     SubGoalOut =.. [InternalName|Args].
 
 
 
+expand(Var, Module, Res, AccIn, AccOut) :- var(Var),!, Res=Var, AccOut=AccIn.
 expand((A,B), Module, (NA, NB), AccIn, AccOut) :-
     expand(A, Module, NA, AccIn, AccTmp),
     expand(B, Module, NB, AccTmp, AccOut).
