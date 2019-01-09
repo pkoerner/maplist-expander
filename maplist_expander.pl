@@ -46,22 +46,36 @@ my_atom_number(Atom, Number) :-
       -> number_chars(Number, Chars), atom_chars(Atom, Chars)
        ; atom_chars(Atom, Chars), number_chars(Number, Chars)).
 
-generate_more_rules(AccIn, Module, InternalName, MetaGoal, Arity, [Module:Goal1, Module:Goal2|AccIn]) :-
+generate_more_rules(AccIn, Module, InternalName, MetaGoal, Arity, ExtraArgs, [Module:Goal1, Module:Goal2|AccIn]) :-
     repeat(Arity, [], BaseCase),
-    Goal1 =.. [InternalName|BaseCase],
+    append(BaseCase,ExtraArgs,FullBaseCase),
+    Goal1 =.. [InternalName|FullBaseCase],
+    %portray_clause(Goal1),nl,
+
     length(Vars, Arity),
     generate_head_tail(Vars, Heads, Tails),
-    GoalHead =.. [InternalName|Vars],
+    append(Vars,ExtraArgs,FullParas),
+    GoalHead =.. [InternalName|FullParas],
 
-    % if the goal is something like maplist(member(1), Xs),
-    % i.e. some arguments are bound to the predicate,
-    % they need to be passed as well
-    MetaGoal =.. [MetaGoalTerm|Args],
-    append(Args, Heads, AllArgs),
+    % add the maplist arguments to the MetaGoal:
+    add_arguments(MetaGoal,Heads,SubGoal),
 
-    SubGoal =.. [MetaGoalTerm|AllArgs],
-    Recursion =.. [InternalName|Tails],
-    Goal2 = ':-'(GoalHead, (SubGoal, Recursion)).
+    append(Tails,ExtraArgs,FullRecursiveParas),
+    Recursion =.. [InternalName|FullRecursiveParas],
+    Goal2 = ':-'(GoalHead, (SubGoal, Recursion)). % portray_clause(Goal2),nl.
+
+% if the goal is something like maplist(member(1), Xs), or maplist(lists:member(X),Xs)
+% i.e. some arguments are bound to the predicate,
+% they need to be passed as well
+add_arguments(MetaGoal,MaplistArgs,SubGoal) :-
+    decompose_meta_goal(MetaGoal,MetaGoalTerm,Args),
+    append(Args, MaplistArgs, AllArgs),
+    decompose_meta_goal(SubGoal,MetaGoalTerm,AllArgs).
+
+decompose_meta_goal(Module:MetaGoal,Module:MetaGoalTerm,Args) :- !,
+   MetaGoal =.. [MetaGoalTerm|Args].
+decompose_meta_goal(MetaGoal,MetaGoalTerm,Args) :- MetaGoal =.. [MetaGoalTerm|Args].
+
 
 gen_name(MetaGoal, Arity, Name) :-
     % generate something like
@@ -95,21 +109,23 @@ inline_calls(ArgLists, MetaGoalName, MetaGoalArgs, (Goal,SubGoalOut)) :-
     Goal =.. [MetaGoalName|AllArgs],
     inline_calls(Tails, MetaGoalName, MetaGoalArgs, SubGoalOut).
 
-replace_goal(MaplistGoal, _, AdditionalRulesIn, AdditionalRulesIn, SubGoalOut) :-
+replace_goal(MaplistGoal, _Module, AdditionalRulesIn, AdditionalRulesIn, SubGoalOut) :-
     MaplistGoal =.. [maplist,MetaGoal|Args],
     all_args_have_known_length(Args),
     !,
     MetaGoal =.. [MetaGoalName|MetaGoalArgs],
-    %print(inlining_maplist(MetaGoalName)),nl,
+    %print(inlining_maplist(_Module,MetaGoalName)),nl,nl,
     inline_calls(Args, MetaGoalName, MetaGoalArgs, SubGoalOut).
 replace_goal(MaplistGoal, Module, AdditionalRulesIn, AdditionalRulesOut, SubGoalOut) :-
     MaplistGoal =.. [maplist,MetaGoal|Args],
-    ground(MetaGoal), % TO DO: if not ground add variables as parameter to generated predicate, e.g., maplist(p(A),I,O)
+    %  if not ground we have to add variables as extra arguments to generated predicate, e.g., maplist(p(A),I,O)
+    term_variables(MetaGoal,ExtraArgs),
     length(Args, Arity),
     gen_name(MetaGoal, Arity, InternalName),
-    generate_more_rules(AdditionalRulesIn, Module,InternalName, MetaGoal, Arity, AdditionalRulesOut),
-    %print(transformed_maplist(InternalName)),nl,
-    SubGoalOut =.. [InternalName|Args].
+    generate_more_rules(AdditionalRulesIn, Module,InternalName, MetaGoal, Arity, ExtraArgs, AdditionalRulesOut),
+    %print(transformed_maplist(Module,InternalName)),nl,nl,
+    append(Args,ExtraArgs,FullArgs),
+    SubGoalOut =.. [InternalName|FullArgs].
 
 
 
