@@ -119,14 +119,15 @@ expand((A,B), Module, (NA, NB), AccIn, AccOut) :-
 expand((A;B), Module, (NA; NB), AccIn, AccOut) :-
     expand(A, Module, NA, AccIn, AccTmp),
     expand(B, Module, NB, AccTmp, AccOut).
-expand((A -> B), Module, (NA, NB), AccIn, AccOut) :-
+expand((A -> B), Module, (NA -> NB), AccIn, AccOut) :-
     expand(A, Module, NA, AccIn, AccTmp),
     expand(B, Module, NB, AccTmp, AccOut).
 expand(':-'(A, B), Module, ':-'(A, ExpandedB), AccIn, AccOut) :- !,
     expand(B, Module, ExpandedB, AccIn, AccOut).
 expand(A, Module, NA, AccIn, AccOut) :-
     functor(A, maplist, _Arity),
-    replace_goal(A, Module, AccIn, AccOut, NA).
+    replace_goal(A, Module, AccIn, AccOut, NA),
+    !.
 expand(X, _Module, X, Acc, Acc).
 
 :- multifile user:term_expansion/6.
