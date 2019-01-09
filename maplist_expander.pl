@@ -97,13 +97,14 @@ inline_calls(ArgLists, MetaGoalName, MetaGoalArgs, (Goal,SubGoalOut)) :-
 
 replace_goal(MaplistGoal, _, AdditionalRulesIn, AdditionalRulesIn, SubGoalOut) :-
     MaplistGoal =.. [maplist,MetaGoal|Args],
-    all_args_have_known_length(Args), !,
+    all_args_have_known_length(Args),
+    !,
     MetaGoal =.. [MetaGoalName|MetaGoalArgs],
     %print(inlining_maplist(MetaGoalName)),nl,
     inline_calls(Args, MetaGoalName, MetaGoalArgs, SubGoalOut).
 replace_goal(MaplistGoal, Module, AdditionalRulesIn, AdditionalRulesOut, SubGoalOut) :-
-    % TODO: inline call entirely if length is statically known
     MaplistGoal =.. [maplist,MetaGoal|Args],
+    ground(MetaGoal), % TO DO: if not ground add variables as parameter to generated predicate, e.g., maplist(p(A),I,O)
     length(Args, Arity),
     gen_name(MetaGoal, Arity, InternalName),
     generate_more_rules(AdditionalRulesIn, Module,InternalName, MetaGoal, Arity, AdditionalRulesOut),
@@ -112,7 +113,7 @@ replace_goal(MaplistGoal, Module, AdditionalRulesIn, AdditionalRulesOut, SubGoal
 
 
 
-expand(Var, Module, Res, AccIn, AccOut) :- var(Var),!, Res=Var, AccOut=AccIn.
+expand(Var, _Module, Res, AccIn, AccOut) :- var(Var),!, Res=Var, AccOut=AccIn.
 expand((A,B), Module, (NA, NB), AccIn, AccOut) :-
     expand(A, Module, NA, AccIn, AccTmp),
     expand(B, Module, NB, AccTmp, AccOut).
@@ -130,10 +131,13 @@ expand(A, Module, NA, AccIn, AccOut) :-
     !.
 expand(X, _Module, X, Acc, Acc).
 
+module_to_expand(_). % we can later add directives to control for which modules we want to expand maplists
+
 :- multifile user:term_expansion/6.
 user:term_expansion(Term1, _Layout1, Ids, [Term2|MoreTerms], [], [maplist_expander_token|Ids]) :-
     nonmember(maplist_expander_token, Ids),
     prolog_load_context(module, Module),
+    module_to_expand(Module),
     expand(Term1, Module, Term2, [], MoreTerms),
     %print(expanded_to(Term2, MoreTerms)),nl.
     true.
