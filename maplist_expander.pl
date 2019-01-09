@@ -80,7 +80,7 @@ decompose_meta_goal(MetaGoal,MetaGoalTerm,Args) :- MetaGoal =.. [MetaGoalTerm|Ar
 gen_name(MetaGoal, Arity, Name) :-
     % generate something like
     % $internal_no_maplisto_member_1_123
-    MetaGoal =.. [MetaGoalName|_],
+    get_name(MetaGoal,MetaGoalName),
     atom_concat('$internal_no_maplisto_', MetaGoalName, InternalTmp1),
     my_atom_number(ArityAtom, Arity),
     atom_concat('_', ArityAtom, InternalTmp2),
@@ -90,6 +90,8 @@ gen_name(MetaGoal, Arity, Name) :-
     atom_concat('_', CountAtom, InternalTmp4),
     atom_concat(InternalTmp3, InternalTmp4, Name).
 
+get_name(_:Call,Name) :- !, functor(Call,Name,_).
+get_name(Call,Name) :- functor(Call,Name,_).
 
 my_is_list(L) :-
     L == [] ;
